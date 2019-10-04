@@ -11,6 +11,7 @@ Cover the objective and goals of the series.
 	* Enums
 	* Parameterising Enums and Structs
 	* Error handling basics
+	* Testing and benchmarking in Rust
 	* Concurrency primitives, especially channels and message passing
 	* Std library functions we might be interested in, file and directory handling etc
 
