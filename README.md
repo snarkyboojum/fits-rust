@@ -8,8 +8,9 @@ Cover the objective and goals of the series.
 	* Cargo and rustup (stable vs nightly etc) and running our first Rust program
 	* Functions, control flow, looping
 	* Structs and method dispatch
-	* Enums a parameterised enums
-	* Error handling
+	* Enums
+	* Parameterising Enums and Structs
+	* Error handling basics
 	* Concurrency primitives, especially channels and message passing
 	* Std library functions we might be interested in, file and directory handling etc
 
@@ -19,9 +20,6 @@ Cover the objective and goals of the series.
 	* Simple - Header and HDUs
 	* Intermediate - Add functionality to inspect headers and HDUs
 	* Advanced - Return more metadata and other FITS detail
-	* Enhance the code to do what it can currently do in parallel (whatever is embarrassingly parallel)
-	* Handing FITS files that don’t fit into available system memory, i.e. memory mapping
-	* Working with compressed FITS files
 
 ## Display FITS files
 	* Use a cross platform crate to do UI?
@@ -32,11 +30,16 @@ Cover the objective and goals of the series.
 	* Benchmarking existing functions
 	* Comparing to astro.py FITS capability
 	* Making the code go faster
-  
+	  
 ## Processing and updating FITS files
 	* Updating FITS files
 	* Creating new FITS files
-	* Validating FITS files
   
+  ## Advanced topics
+	* Enhance the code to do what it can currently do in parallel (whatever is embarrassingly parallel)
+	* Handing FITS files that don’t fit into available system memory, i.e. memory mapping
+	* Working with compressed FITS files
+	* Validating FITS files
+
 
 
