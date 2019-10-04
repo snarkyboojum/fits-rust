@@ -4,7 +4,7 @@ Simple Rust libraries to process FITS files. See and [FITS at NASA/GFSC](https:/
 ## Brief overview
 Cover the objective and goals of the series.
 
-## Intro to a subset of Rust that we will use:
+## Intro to a subset of Rust that we will use
 	* Cargo and rustup (stable vs nightly etc) and running our first Rust program
 	* Functions, control flow, looping
 	* Structs and method dispatch
@@ -33,8 +33,10 @@ Cover the objective and goals of the series.
 	* Comparing to astro.py FITS capability
 	* Making the code go faster
   
-## Processing FITS files
+## Processing and updating FITS files
 	* Updating FITS files
+	* Creating new FITS files
+	* Validating FITS files
   
 
 
