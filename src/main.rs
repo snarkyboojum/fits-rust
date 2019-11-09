@@ -1,6 +1,3 @@
-extern crate byteorder;
-
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -13,9 +10,9 @@ enum Section {
     Extension,
 }
 
-struct Fits<Header, Data, Extension> {
+struct Fits<'a> {
     header: Header,
-    data: Data,
+    data: Data<'a>,
     extension: Vec<Extension>,
 }
 
@@ -68,14 +65,14 @@ fn main() {
     let mut state = Section::Header;
     let mut block_index = 0;
 
-    let mut fits: Fits<Header, Data, Extension> = Fits {
+    let mut fits: Fits = Fits {
         header: Default::default(),
         data: Default::default(),
         extension: Default::default(),
     };
 
     for (current_block, chunk) in fits_data.chunks(BLOCK_SIZE).enumerate() {
-        println!("Processing chunk, {}", current_block);
+        //println!("Processing chunk, {}", current_block);
 
         match state {
             Section::Header => {
@@ -86,11 +83,12 @@ fn main() {
                 }
             }
             Section::Data => {
-                // @todo: stop hardcoding dim and lookup in header!
-                let dimensionality = 2;
-                if dimensionality == 2 {
-                    let (x, y) = (2000, 4);
-                    fits.data = parse_data(&fits_data, block_index, (x, y));
+                if let Some(dimensionality) = get_dimensionality(&fits.header) {
+                    if dimensionality == 2 {
+                        if let Some((x, y)) = get_xy(&fits.header) {
+                            fits.data = parse_data(&fits_data, block_index, (x, y));
+                        }
+                    }
                 }
                 state = Section::Extension;
                 block_index = current_block + (fits.data.data.len() / BLOCK_SIZE) + 1;
@@ -119,8 +117,32 @@ fn main() {
     //println!("Extension data: {}", fits.extension[0].data);
 }
 
+fn get_dimensionality(header: &Header) -> Option<u32> {
+    if let Some(value) = header.data.get("NAXIS") {
+        if let Ok(dim) = value.parse::<u32>() {
+            Some(dim)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn get_xy(header: &Header) -> Option<(u32, u32)> {
+    let (mut x, mut y) = (0, 0);
+    if let Some(value) = header.data.get("NAXIS1") {
+        x = value.parse::<u32>().unwrap();
+    }
+    if let Some(value) = header.data.get("NAXIS2") {
+        y = value.parse::<u32>().unwrap();
+    }
+
+    Some((x, y))
+}
+
 // interpret data based on header values,
-fn render_data(fits: &Fits<Header, Data, Extension>) {
+fn render_data(fits: &Fits) {
     println!("[Rendering FITS data]");
 
     let mut rendered_data: Vec<f32> = vec![0.0; fits.data.data.len() / 4];
@@ -129,8 +151,44 @@ fn render_data(fits: &Fits<Header, Data, Extension>) {
     BigEndian::read_f32_into(&fits.data.data, &mut rendered_data);
 
     // normalise and stretch the data for rendering / visualisation
+    let mut normalised_data = Vec::new();
+    normalise_asinh(255.0, &rendered_data, &mut normalised_data);
 
-    // write the data as a PNG or a BMP
+    // write the data as a PNG
+    write_png(&fits, &normalised_data, "data/output.png");
+}
+
+fn normalise_asinh(normalise_to: f32, data: &[f32], normal_data: &mut Vec<u8>) {
+    let mut high = 0.0;
+    for i in data {
+        if *i > high {
+            high = *i;
+        }
+    }
+    //println!("The largest pixel value is: {}", high);
+
+    for i in data {
+        let value = i.asinh() / high.asinh() * normalise_to;
+        //let value = i / high * normalise_to;
+        normal_data.push(value as u8);
+    }
+}
+
+fn write_png(fits: &Fits, data: &[u8], output_path: &str) {
+    use std::io::BufWriter;
+    let file = File::create(output_path).expect("Couldn't create PNG file");
+    let buffer = BufWriter::new(file);
+
+    if let Some((x, y)) = get_xy(&fits.header) {
+        let mut encoder = png::Encoder::new(buffer, x, y);
+        encoder.set_color(png::ColorType::Grayscale);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().expect("Couldn't write PNG header");
+
+        if writer.write_image_data(&data).is_err() {
+            println!("Couldn't write PNG image data");
+        }
+    }
 }
 
 fn parse_header(fits: &[u8], last_block: usize, current_block: usize) -> Header {
@@ -142,7 +200,7 @@ fn parse_header(fits: &[u8], last_block: usize, current_block: usize) -> Header 
     for chunk in header_data.chunks(RECORD_SIZE) {
         let record_string = String::from_utf8_lossy(chunk);
 
-        if let Some(Record { key, value }) = parse_record(record_string) {
+        if let Some(Record { key, value }) = parse_record(&record_string) {
             //println!("{}: {}", key, value);
             header_records.insert(key, value);
         }
@@ -173,12 +231,19 @@ fn parse_extension(fits: &[u8], last_block: usize, current_block: usize) -> Exte
     }
 }
 
-fn parse_record(record: Cow<str>) -> Option<Record> {
+fn parse_record(record: &str) -> Option<Record> {
     if record.contains('=') {
         let records: Vec<&str> = record.splitn(2, '=').collect();
+        let k = records[0];
+        let mut v = records[1];
+
+        if v.contains('/') {
+            let values: Vec<&str> = v.splitn(2, '/').collect();
+            v = values[0];
+        }
         let r = Record {
-            key: records[0].trim().to_string(),
-            value: records[1].trim().to_string(),
+            key: k.trim().to_string(),
+            value: v.trim().to_string(),
         };
         Some(r)
     } else {
